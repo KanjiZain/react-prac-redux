@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+    nodejs "NodeJS 18"
+    }
+
     environment {
         DOCKER_IMAGE = "react-app:latest"
         CONTAINER_NAME = "react-container"
