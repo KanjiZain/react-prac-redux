@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     tools {
-    nodejs "NodeJS 18"
+        // Use exact NodeJS installation name as configured in Jenkins global tools
+        nodejs "NodeJS 18.19.0"
     }
 
     environment {
@@ -34,18 +35,15 @@ pipeline {
 
         stage('Run Docker Container') {
             steps {
-                script {
-                    // Stop and remove any existing container
-                    sh '''
-                    if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
-                      docker stop $CONTAINER_NAME || true
-                      docker rm $CONTAINER_NAME || true
-                    fi
+                sh '''
+                if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
+                  docker stop $CONTAINER_NAME || true
+                  docker rm $CONTAINER_NAME || true
+                fi
 
-                    // Run new container
-                    docker run -d -p 3000:80 --name $CONTAINER_NAME $DOCKER_IMAGE
-                    '''
-                }
+                # Run new container, exposing host port 3000 to container port 80
+                docker run -d -p 3000:80 --name $CONTAINER_NAME $DOCKER_IMAGE
+                '''
             }
         }
     }
