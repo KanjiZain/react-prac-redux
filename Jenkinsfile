@@ -9,13 +9,5 @@ pipeline {
         }
 
 
-    post {
-        success {
-            echo '✅ React app deployed successfully via Docker!'
-        }
-        failure {
-            echo '❌ Build failed. Check Jenkins logs.'
-        }
     }
-}
 }
