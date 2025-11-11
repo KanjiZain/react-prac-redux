@@ -1,56 +1,76 @@
 pipeline {
-    agent any
-
-
+    agent any 
 
     environment {
-        DOCKER_IMAGE = "react-app:latest"
-        CONTAINER_NAME = "react-container"
+        DEPLOY_BRANCH = 'main'
     }
 
     stages {
-        stage('Checkout') {
+        stage("Verify Branch") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
             steps {
-                git branch: 'main', url: 'https://github.com/KanjiZain/react-prac-redux'
+                echo "✅ Triggered on correct branch: ${env.GIT_BRANCH}"
             }
         }
 
-        stage('Install Dependencies & Build') {
+
+
+        stage("Stop and Remove Old Container") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
             steps {
-                sh '''
-                npm install
-                npm run build
-                '''
+                script {
+                    sh 'docker stop react-frontend || true'  
+                    sh 'docker rm -f react-frontend || true'
+                    sh 'docker rmi -f react-frontend:latest || true'
+                }
             }
         }
 
-        stage('Build Docker Image') {
+        stage("Building Docker Container") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                script {
+                    sh 'docker build --no-cache -t react-frontend:latest .' 
+                }
             }
         }
 
-        stage('Run Docker Container') {
+        stage("Deploy New Container") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
             steps {
-                sh '''
-                if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
-                  docker stop $CONTAINER_NAME || true
-                  docker rm $CONTAINER_NAME || true
-                fi
-
-                # Run new container, exposing host port 3000 to container port 80
-                docker run -d -p 3000:80 --name $CONTAINER_NAME $DOCKER_IMAGE
-                '''
+                script {
+                    sh 'docker run -d -p 3000:3000 --name react-frontend react-frontend:latest'
+                }
             }
         }
-    }
 
-    post {
-        success {
-            echo '✅ React app deployed successfully via Docker!'
+        stage("Cleanup") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
+            steps {
+                script {
+                    sh 'docker image prune -a --force'
+                    sh 'docker system prune -a -f'
+                }
+            }
         }
-        failure {
-            echo '❌ Build failed. Check Jenkins logs.'
+
+        stage("Pipeline Finished") {
+            when {
+                expression { return env.GIT_BRANCH ==~ /.*${DEPLOY_BRANCH}$/ }
+            }
+            steps {
+                echo "✅ Pipeline execution finished for ${DEPLOY_BRANCH}"
+            }
         }
     }
 }
